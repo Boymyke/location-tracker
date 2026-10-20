@@ -1,0 +1,5 @@
+/*
+  Permissions-Policy: camera=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self)
+  X-Content-Type-Options: nosniff
+/sw.js
+  Cache-Control: no-cache
