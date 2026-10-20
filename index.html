@@ -32,7 +32,10 @@
     <div class="grab"></div>
     <h1>Where are you?</h1>
     <p class="sub">Tap your room on the map, or choose it below.</p>
-    <label class="search"><i data-ic="search"></i><input id="where-search" type="search" placeholder="Search rooms" autocomplete="off" /></label>
+    <div class="search-row">
+      <label class="search"><i data-ic="search"></i><input id="where-search" type="search" placeholder="Search rooms" autocomplete="off" /></label>
+      <button class="scan-btn" id="btn-scan" aria-label="Find me with the camera"><i data-ic="scan-eye" data-size="22"></i><span>Scan</span></button>
+    </div>
     <div id="where-list" class="list"></div>
   </div>
   <div class="dock">
@@ -95,6 +98,7 @@
   <video id="cam" playsinline muted autoplay></video>
   <div class="cam-fallback" id="cam-fallback"></div>
   <canvas id="ar-canvas"></canvas>
+  <canvas id="det-canvas"></canvas>
   <div id="ar-labels"></div>
   <svg id="nav-map" class="map navmap"></svg>
 
@@ -111,6 +115,7 @@
       <span class="chip-dark" id="chip-zone"><span class="zdot"></span><span id="zone-name">—</span></span>
       <span class="chip-dark" id="chip-floor"><i data-ic="layers" data-size="14"></i><span id="floor-name">Ground floor</span></span>
       <span class="chip-dark" id="chip-sensor"></span>
+      <span class="chip-dark cam hidden" id="chip-cam"><i data-ic="scan-eye" data-size="14"></i><span id="cam-name"></span></span>
     </div>
   </div>
 
@@ -155,6 +160,7 @@
     <button id="m-voice"><i data-ic="volume-2"></i><span>Voice guidance: on</span></button>
     <button id="m-calib"><i data-ic="compass"></i><span>Recalibrate compass</span></button>
     <button id="m-demo"><i data-ic="play"></i><span>Demo walk</span></button>
+    <button id="m-detect"><i data-ic="scan-eye"></i><span>Show detected objects</span></button>
     <button id="m-step"><i data-ic="footprints"></i><span>Add one step</span></button>
     <button id="m-close" class="muted"><i data-ic="x"></i><span>Close</span></button>
   </div>
@@ -174,6 +180,17 @@
       <button class="btn tonal" id="btn-done">Done</button>
       <button class="btn primary" id="btn-again"><i data-ic="search"></i><span>Go elsewhere</span></button>
     </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="scan">
+  <div class="sheet-card scan-card">
+    <div class="scan-cam"><video id="scan-video" playsinline muted autoplay></video><canvas id="scan-det"></canvas><div class="scan-frame"></div></div>
+    <p class="over" id="scan-state">Starting camera…</p>
+    <h2 id="scan-guess">—</h2>
+    <div class="scan-rank" id="scan-rank"></div>
+    <div class="tags" id="scan-objs"></div>
+    <div class="row"><button class="btn tonal" id="scan-cancel">Cancel</button><button class="btn primary" id="scan-ok" disabled><i data-ic="check"></i><span>I'm here</span></button></div>
   </div>
 </div>
 
@@ -199,11 +216,13 @@
 
 <script src="js/icons.js"></script>
 <script src="js/house.js"></script>
+<script src="js/venue.js"></script>
 <script src="js/router.js"></script>
 <script src="js/sensors.js"></script>
 <script src="js/learn.js"></script>
 <script src="js/map.js"></script>
 <script src="js/ar.js"></script>
+<script src="js/vision.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

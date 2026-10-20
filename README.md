@@ -36,3 +36,18 @@ Camera and compass require HTTPS, which Cloudflare provides.
 * **Live view** draws the route as a **line painted on the floor** in the camera (`js/ar.js`). It's projected using the compass heading and phone tilt, with moving chevrons, a destination pin, and room labels pinned at their doors.
 * **Geofencing**: every room is a fence. The app shows which room you're in, announces **arrival as soon as you enter the destination's fence**, and warns you when you walk away from the route corridor.
 * **Map view** shows Google-Maps-style turn-by-turn on the floor plan, with the walked part greyed out.
+
+## v3: admin app, camera learning, find things
+**Admin: `/admin.html`** (protected by a PIN you create on first visit)
+* **Map:** trace your floor plan. Draw rooms, put doors on walls, link stairs, place objects (bed, fridge, wardrobe…). Walkways are generated automatically. Test any route (always the shortest path). Block a walkway if something is in the way. "Map check" lists unreachable rooms and doors that lead nowhere. **Publish** sends it to every phone.
+* **Things:** add items kept at objects ("Phone charger → Room 2 bed → bedside drawer"). People can search for them and get walked there.
+* **Train:** teach the camera what each spot looks like (TensorFlow.js in the browser). Includes live test, object detection and an accuracy check.
+* **Learn:** analyses recorded trips to correct walking distances, avoid abandoned walkways, and suggest missing doors.
+* **Settings:** scale, floors, tracing image, import/export, PIN.
+
+**App**
+* **Scan**: find where you are with the camera, no QR code.
+* Search **things** as well as rooms.
+* While walking, the camera keeps correcting your position and re-routes if you end up elsewhere. "Show detected objects" labels beds, sofas, TVs and more in the live view.
+
+Storage: a Cloudflare KV namespace bound as `GOE` (map, model, admin PIN hash, trips).

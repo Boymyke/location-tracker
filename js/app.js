@@ -7,10 +7,11 @@
 
   const CATS = [
     { id: "all", label: "All", icon: "layers", match: () => true },
-    { id: "food", label: "Food", icon: "chef-hat", match: (r) => ["kitchen", "store", "dining"].includes(r.id) },
+    { id: "things", label: "Things", icon: "package", match: () => false, things: true },
+    { id: "food", label: "Food", icon: "chef-hat", match: (r) => /kitchen|store|pantry|dining/i.test(r.name) },
     { id: "relax", label: "Relax", icon: "sofa", match: (r) => r.kind === "living" || r.kind === "shared" },
     { id: "sleep", label: "Bedrooms", icon: "bed-double", match: (r) => r.kind === "room" },
-    { id: "bath", label: "Toilet", icon: "toilet", match: (r) => r.id === "wc" },
+    { id: "bath", label: "Toilet", icon: "toilet", match: (r) => /toilet|wc|bath/i.test(r.name) || r.icon === "toilet" },
     { id: "work", label: "Study", icon: "book-open", match: (r) => r.kind === "work" },
     { id: "exit", label: "Exits", icon: "door-open", match: (r) => r.kind === "exit" },
   ];
@@ -43,11 +44,14 @@
   const secsFor = (m) => Math.max(1, Math.round(m / WALK_SPEED));
   const fmtTime = (s) => (s < 60 ? `${s} sec` : `${Math.round(s / 60)} min`);
   const floorName = (f) => H.floors[f].name;
-  const floorShort = (f) => (f === "U" ? "2F" : "1F");
+  const floorShort = (f) => `${(H.floors[f].level || 0) + 1}F`;
+  const floorIds = () => Object.keys(H.floors).sort((a, b) => (H.floors[b].level || 0) - (H.floors[a].level || 0));
+  const lowestFloor = () => floorIds().slice(-1)[0];
   const tile = (r, size = 20) => {
     const k = MV.KIND[r.kind] || MV.KIND.circulation;
     return `<span class="tile" style="--tint:${k.fill};--ink:${k.ink}">${I.svg(r.icon, size)}</span>`;
   };
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
   const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
   document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => show(b.dataset.back)));
@@ -57,7 +61,7 @@
   function floorSwitch(target, current, onChange) {
     const box = document.querySelector(`.floor-switch[data-target="${target}"]`);
     box.innerHTML = "";
-    ["U", "G"].forEach((f) => {
+    floorIds().forEach((f) => {
       const b = document.createElement("button");
       b.textContent = floorShort(f); b.title = floorName(f);
       b.className = f === current ? "on" : "";
@@ -81,7 +85,7 @@
       list.insertAdjacentHTML("beforeend", `<div class="list-h">Recent</div>`);
       list.appendChild(row(r, `Last location · ${floorName(r.floor)}`, sel && sel.id === r.id, () => pickFrom(r)));
     }
-    for (const f of ["G", "U"]) {
+    for (const f of floorIds().reverse()) {
       const rooms = H.rooms.filter((r) => r.floor === f && (!r.hidden || r.kind === "stairs") && (!q || r.name.toLowerCase().includes(q)));
       if (!rooms.length) continue;
       list.insertAdjacentHTML("beforeend", `<div class="list-h">${floorName(f)}</div>`);
@@ -125,18 +129,52 @@
     const q = $("dest-search").value.trim().toLowerCase();
     const cat = CATS.find((c) => c.id === st.cat);
     const list = $("dest-list"); list.innerHTML = "";
+    const things = (cat.things || q) ? thingTargets(q) : [];
     const items = H.rooms.filter((r) => !r.hidden && r.id !== st.fromRoom.id && cat.match(r)).filter((r) =>
       !q || (r.name + " " + r.about + " " + r.activities.join(" ") + " " + r.objects.join(" ")).toLowerCase().includes(q))
       .map((r) => ({ r, route: R.buildRoute(st.fromRoom.node, r.node) }))
       .filter((x) => x.route)
       .sort((a, b) => a.route.total - b.route.total);
-    if (!items.length) { list.innerHTML = `<div class="empty">${I.svg("search", 28)}<p>Nothing matches “${q || cat.label}”.</p></div>`; return; }
+    if (things.length) {
+      list.insertAdjacentHTML("beforeend", `<div class="list-h">Things</div>`);
+      things.forEach((d) => {
+        const route = R.buildRoute(st.fromRoom.node, d.node); if (!route) return;
+        const end = `<span class="ri-steps"><b>${stepsFor(route.total)}</b><small>steps</small></span>${I.svg("chevron-right", 18)}`;
+        list.appendChild(row(d, d.sub, false, () => openPreview(d), end));
+      });
+      if (items.length) list.insertAdjacentHTML("beforeend", `<div class="list-h">Places</div>`);
+    }
+    if (!items.length && !things.length) { list.innerHTML = `<div class="empty">${I.svg("search", 28)}<p>Nothing matches “${q || cat.label}”.${cat.things ? " Add objects and items in the admin app." : ""}</p></div>`; return; }
     items.forEach(({ r, route }) => {
       const ch = route.legs.some((l) => l.type === "stairs");
       const sub = `${floorName(r.floor)}${ch ? " · via stairs" : ""} · ${r.activities.slice(0, 2).join(", ")}`;
       const end = `<span class="ri-steps"><b>${stepsFor(route.total)}</b><small>steps</small></span>${I.svg("chevron-right", 18)}`;
       list.appendChild(row(r, sub, false, () => openPreview(r), end));
     });
+  }
+  // objects (bed, fridge…) and the items kept at them, as destinations
+  function thingDest(o, item) {
+    const n = H.nodes["o_" + o.id]; const room = n && roomById[n.place];
+    const roomName = room ? room.name : "";
+    return {
+      id: "obj:" + o.id + (item ? ":" + item.id : ""), isThing: true, objectId: o.id, item, kind: "object",
+      name: item ? item.name : o.name, icon: item ? "search" : o.icon || "map-pin", floor: o.floor, node: "o_" + o.id, roomName,
+      sub: item ? `At the ${o.name}${item.where ? " · " + item.where : ""}` : `${roomName ? "In " + roomName + " · " : ""}${floorName(o.floor)}`,
+      about: item ? `Kept at the ${o.name}${roomName ? " in " + roomName : ""}` : `${roomName ? "In " + roomName : "Object"}`,
+      activities: item ? [item.where ? `Look here: ${item.where}` : `Look at the ${o.name}`] : (o.items || []).length ? o.items.map((i) => `Find ${i.name}${i.where ? " (" + i.where + ")" : ""}`) : ["Find it here"],
+      objects: [],
+    };
+  }
+  function thingTargets(q) {
+    const out = [];
+    for (const o of H.objects || []) {
+      if (!H.nodes["o_" + o.id]) continue;
+      const room = roomById[H.nodes["o_" + o.id].place];
+      const oText = (o.name + " " + (room ? room.name : "")).toLowerCase();
+      if (!q || oText.includes(q)) out.push(thingDest(o));
+      for (const it of o.items || []) if (!q || (it.name + " " + (it.where || "")).toLowerCase().includes(q)) out.push(thingDest(o, it));
+    }
+    return out.filter((d) => !st.fromRoom || d.node !== st.fromRoom.node).slice(0, 40);
   }
   function renderDestMap() {
     const n = H.nodes[st.fromRoom.node];
@@ -166,7 +204,8 @@
       legs.insertAdjacentHTML("beforeend", `<li><span class="st-ic">${I.svg(l.icon, 20)}</span><span class="st-tx">${l.text}<small>${n}${pass}</small></span></li>`);
     });
     legs.insertAdjacentHTML("beforeend", `<li class="final"><span class="st-ic">${I.svg("flag", 20)}</span><span class="st-tx">Arrive at ${R.phr(room.name)}<small>${floorName(room.floor)} · you'll be told when you enter</small></span></li>`);
-    $("pv-info").innerHTML = `<p>${room.about}</p>
+    if (room.isThing && room.item) $("pv-info").innerHTML = `<div class="look-here">${I.svg("search", 20)}<div><b>${room.item.where ? "Look here: " + esc(room.item.where) : "Look around the " + esc(room.about)}</b><span>${esc(room.about)}</span></div></div>`;
+    else $("pv-info").innerHTML = `<p>${room.about}</p>
       <ul class="acts">${room.activities.map((a) => `<li>${I.svg("check", 16)}${a}</li>`).join("")}</ul>
       ${room.objects.length ? `<div class="tags">${room.objects.map((o) => `<span>${I.svg("map-pin", 13)}${o}</span>`).join("")}</div>` : ""}`;
     show("preview");
@@ -177,7 +216,7 @@
     box.style.display = "";
     floorSwitch("pv", st.pvFloor, (f) => { st.pvFloor = f; renderPreviewMap(); });
     box.classList.toggle("dual", floors.length > 1);
-    MV.render($("pv-map"), st.pvFloor, { route: st.route, highlight: st.dest.id, fences: true });
+    MV.render($("pv-map"), st.pvFloor, { route: st.route, highlight: st.dest.isThing ? null : st.dest.id, highlightObject: st.dest.objectId, fences: true });
   }
   $("btn-start").onclick = () => startNav("live");
   $("btn-start-map").onclick = () => startNav("map");
@@ -194,6 +233,7 @@
     setMode(mode);
     if (mode === "live") await ensureCamera();
     S.onStep = onStep;
+    startVisionFixes();
     updateNav(true);
     cancelAnimationFrame(st.raf);
     st.raf = requestAnimationFrame(tick);
@@ -248,7 +288,7 @@
         factor = diff < 60 ? 1 : diff < 110 ? 0.4 : 0;
         // route corridor fence: walking away from the path for several steps
         st.wrongWay = diff > 115 ? st.wrongWay + 1 : 0;
-        if (st.wrongWay >= 4 && !st.offrouteShown) { st.offrouteShown = true; $("offroute").classList.remove("hidden"); vibrate([60, 60, 60]); speak("You're leaving the route."); L.log("offroute", {}); }
+        if (st.wrongWay >= 4 && !st.offrouteShown) { st.offrouteShown = true; $("offroute").classList.remove("hidden"); vibrate([60, 60, 60]); speak("You're leaving the route."); L.log("offroute", { from: seg.from, to: seg.to }); }
       }
       st.dist += L.stride() * factor;
     }
@@ -328,7 +368,7 @@
     }
     if (t - st.lastMap > 220) {
       st.lastMap = t;
-      const opts = { route: st.route, progress: st.vDist, you: pos, heading: ph != null ? st.vHead : null, highlight: st.dest.id, fences: true, follow: true };
+      const opts = { route: st.route, progress: st.vDist, you: pos, heading: ph != null ? st.vHead : null, highlight: st.dest.isThing ? null : st.dest.id, highlightObject: st.dest.objectId, fences: true, follow: true };
       if (st.mode === "live") MV.render($("mini-map"), pos.floor, { ...opts, zoom: 230 });
       else MV.render($("nav-map"), pos.floor, { ...opts, zoom: 330, offsetY: 0.12 });
     }
@@ -343,6 +383,11 @@
       if (st.zone && st.zone.id === room.id) continue;
       const d = Math.hypot(n.x - pos.x, n.y - pos.y);
       if (!best[room.id] || d < best[room.id].d) best[room.id] = { d, room, nodeId: id };
+    }
+    for (const o of H.objects || []) {
+      if (o.floor !== pos.floor || o.id === st.dest.objectId) continue;
+      if (Math.hypot(o.x - pos.x, o.y - pos.y) * H.metersPerPx > 6) continue;
+      best["o_" + o.id] = { room: { id: "o_" + o.id, name: o.name, icon: o.icon || "map-pin", activities: (o.items || []).map((i) => i.name) }, nodeId: "o_" + o.id, obj: true };
     }
     return Object.values(best);
   }
@@ -423,14 +468,14 @@
   }
   function renderPicker() {
     const seg = $("pk-floor"); seg.innerHTML = "";
-    ["G", "U"].forEach((f) => {
+    floorIds().reverse().forEach((f) => {
       const b = document.createElement("button"); b.textContent = floorName(f); b.className = f === st.pkFloor ? "on" : "";
       b.onclick = () => { st.pkFloor = f; renderPicker(); }; seg.appendChild(b);
     });
     MV.render($("pk-map"), st.pkFloor, {
       onPick: (r) => {
         $("picker").classList.add("hidden");
-        L.log("relocate", { room: r.id });
+        { const sg = R.segAt(st.route, st.dist); L.log("relocate", { room: r.id, from: sg.from, to: sg.to }); }
         st.fromRoom = r;
         if (r.node === st.dest.node || r.id === st.dest.id) return arrive("relocated");
         const route = R.buildRoute(r.node, st.dest.node);
@@ -452,13 +497,14 @@
     stopNav("arrived");
     const r = st.dest;
     $("arr-name").textContent = r.name;
-    $("arr-about").textContent = `${r.about} · ${floorName(r.floor)}`;
+    $("arr-about").textContent = r.isThing && r.item ? (r.item.where ? `Look here: ${r.item.where}` : r.about) : `${r.about} · ${floorName(r.floor)}`;
     $("arr-acts").innerHTML = r.activities.map((a) => `<li>${I.svg("check", 16)}${a}</li>`).join("");
     $("arr-objs").innerHTML = r.objects.map((o) => `<span>${I.svg("map-pin", 13)}${o}</span>`).join("");
     $("arrived").classList.remove("hidden");
     speak(`You have arrived at the ${r.name}. Here you can ${r.activities.slice(0, 2).join(", or ").toLowerCase()}.`);
     vibrate([80, 60, 80, 60, 160]);
-    st.fromRoom = r; st.whereFloor = r.floor; save("goe.lastRoom", r.id);
+    const at = r.isThing ? roomById[H.nodes[r.node].place] : r;
+    if (at) { st.fromRoom = at; st.whereFloor = at.floor; save("goe.lastRoom", at.id); }
   }
   $("btn-again").onclick = () => { $("arrived").classList.add("hidden"); $("dest-search").value = ""; st.cat = "all"; st.destFloor = st.fromRoom.floor; renderDest(); show("dest"); };
   $("btn-done").onclick = () => { $("arrived").classList.add("hidden"); st.pendingFrom = null; renderWhere(); show("where"); };
@@ -468,6 +514,7 @@
     cancelAnimationFrame(st.raf);
     if (st.demoTimer) { clearInterval(st.demoTimer); st.demoTimer = null; $("m-demo").querySelector("span").textContent = "Demo walk"; }
     S.onStep = null; S.stopCamera(); AR.clear();
+    clearInterval(st.visTimer); st.visTimer = null; st.detecting = false; clearDetCanvas($("det-canvas")); $("chip-cam").classList.add("hidden");
     ["calib", "stairs-sheet", "menu", "offroute"].forEach((id) => $(id).classList.add("hidden"));
     $("turn-hint").classList.add("hidden");
     L.endTrip(outcome);
@@ -484,18 +531,174 @@
   $("btn-data-close").onclick = () => $("data").classList.add("hidden");
   document.querySelectorAll(".overlay").forEach((o) => o.addEventListener("click", (e) => { if (e.target === o && o.id !== "arrived") o.classList.add("hidden"); }));
 
+  // =====================================================================
+  // CAMERA: scan to find where you are (no QR code)
+  // =====================================================================
+  const VIS = window.Vision;
+  const scan = { stream: null, on: false, scores: {}, dets: [], best: null };
+  async function ensureModel() {
+    if (!VIS.samples.length) await VIS.fetchModel();
+    return VIS.hasModel();
+  }
+  $("btn-scan").onclick = openScan;
+  async function openScan() {
+    $("scan").classList.remove("hidden");
+    $("scan-ok").disabled = true; $("scan-guess").textContent = "—"; $("scan-rank").innerHTML = ""; $("scan-objs").innerHTML = "";
+    $("scan-state").textContent = "Starting camera…";
+    try {
+      scan.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 640 } }, audio: false });
+      $("scan-video").srcObject = scan.stream; await $("scan-video").play().catch(() => {});
+    } catch { $("scan-state").textContent = "Camera not available. Choose your room from the list instead."; return; }
+    scan.on = true; scan.scores = {}; scan.dets = [];
+    $("scan-state").textContent = "Loading the AI model…";
+    try { await VIS.load(); } catch { $("scan-state").textContent = "Couldn't load the AI model. Check your connection."; return; }
+    const trained = await ensureModel();
+    $("scan-state").textContent = trained ? "Slowly look around the room…" : "The camera hasn't been trained here yet, so I'll guess from the objects I see.";
+    VIS.loadDetector().then(detScanLoop).catch(() => {});
+    scanLoop();
+  }
+  function scanLoop() {
+    if (!scan.on) return;
+    const hints = scan.dets.map((d) => d.class);
+    if (VIS.hasModel()) {
+      const p = VIS.predict(VIS.embed($("scan-video")), hints);
+      if (p) for (const r of p.ranking) scan.scores[r.label.room] = (scan.scores[r.label.room] || 0) * 0.7 + r.conf * 0.3 * (p.sim > 0.5 ? 1 : 0.4);
+      for (const k in scan.scores) if (!p || !p.ranking.some((r) => r.label.room === k)) scan.scores[k] *= 0.7;
+    } else if (hints.length) {
+      // untrained: rooms whose objects/name match what the detector sees
+      for (const r of H.rooms) {
+        if (!r.rect) continue;
+        const text = (r.name + " " + (r.objects || []).join(" ")).toLowerCase();
+        const hit = hints.some((h) => ({ bed: ["bed", "room"], couch: ["sofa", "parlour", "chill"], tv: ["tv", "parlour"], toilet: ["toilet", "wc"], refrigerator: ["fridge", "kitchen"], oven: ["cooker", "kitchen"], sink: ["sink", "kitchen", "wc"], "dining table": ["dining", "table"] }[h] || []).some((w) => text.includes(w)));
+        scan.scores[r.id] = (scan.scores[r.id] || 0) * 0.8 + (hit ? 0.2 : 0);
+      }
+    }
+    const ranked = Object.entries(scan.scores).filter(([id]) => roomById[id]).sort((a, b) => b[1] - a[1]);
+    const total = ranked.reduce((t, [, v]) => t + v, 0) || 1;
+    if (ranked.length && ranked[0][1] / total > 0.34 && ranked[0][1] > 0.12) {
+      const room = roomById[ranked[0][0]];
+      scan.best = room;
+      $("scan-guess").textContent = room.name;
+      $("scan-state").textContent = `You're probably in · ${floorName(room.floor)}`;
+      $("scan-ok").disabled = false;
+      $("scan-rank").innerHTML = ranked.slice(0, 3).map(([id, v]) => `<div class="pr"><span>${esc(roomById[id].name)}</span><i style="width:${Math.round((v / total) * 100)}%"></i><b>${Math.round((v / total) * 100)}%</b></div>`).join("");
+    }
+    scan.timer = setTimeout(scanLoop, 450);
+  }
+  async function detScanLoop() {
+    if (!scan.on) return;
+    scan.dets = await VIS.detect($("scan-video"));
+    drawDet($("scan-det"), $("scan-video"), scan.dets);
+    $("scan-objs").innerHTML = [...new Set(scan.dets.map((d) => d.class))].map((c) => `<span>${I.svg(VIS.COCO_ICONS[c] || "scan-eye", 13)}${esc(c)}</span>`).join("");
+    setTimeout(detScanLoop, 800);
+  }
+  function closeScan() {
+    scan.on = false; clearTimeout(scan.timer);
+    if (scan.stream) scan.stream.getTracks().forEach((t) => t.stop());
+    scan.stream = null; $("scan").classList.add("hidden");
+  }
+  $("scan-cancel").onclick = closeScan;
+  $("scan-ok").onclick = () => { const r = scan.best; closeScan(); if (r) { pickFrom(r); toast(`Location set: ${r.name}`); } };
+
+  // draw COCO boxes over a cover-fitted video
+  function drawDet(canvas, vid, dets) {
+    const W = canvas.clientWidth, Hh = canvas.clientHeight, dpr = devicePixelRatio || 1;
+    canvas.width = W * dpr; canvas.height = Hh * dpr;
+    const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Hh);
+    const vw = vid.videoWidth, vh = vid.videoHeight; if (!vw) return;
+    const k = Math.max(W / vw, Hh / vh), ox = (W - vw * k) / 2, oy = (Hh - vh * k) / 2;
+    ctx.lineWidth = 3; ctx.font = "700 13px Inter, sans-serif";
+    for (const d of dets) {
+      const [x, y, w, h] = d.bbox, X = ox + x * k, Y = oy + y * k;
+      ctx.strokeStyle = "rgba(70,227,183,.95)"; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(X, Y, w * k, h * k, 10) : ctx.rect(X, Y, w * k, h * k); ctx.stroke();
+      const label = d.class.replace(/^\w/, (c) => c.toUpperCase()), tw = ctx.measureText(label).width + 14;
+      ctx.fillStyle = "rgba(70,227,183,.95)"; ctx.fillRect(X, Math.max(0, Y - 24), tw, 24);
+      ctx.fillStyle = "#06261C"; ctx.fillText(label, X + 7, Math.max(0, Y - 24) + 17);
+    }
+  }
+  function clearDetCanvas(c) { if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height); }
+
+  // =====================================================================
+  // CAMERA DURING NAVIGATION: fix position from what the camera sees
+  // =====================================================================
+  function startVisionFixes() {
+    st.vis = { last: null, streak: 0, cool: 0 };
+    (async () => {
+      try { if (!(await ensureModel())) return; await VIS.load(); } catch { return; }
+      if (!st.navigating) return;
+      clearInterval(st.visTimer);
+      st.visTimer = setInterval(visionStep, 1300);
+    })();
+  }
+  function visionStep() {
+    if (!st.navigating || st.mode !== "live" || !S._stream || st.demoTimer) return;
+    const cam = $("cam"); if (!cam.videoWidth) return;
+    const p = VIS.predict(VIS.embed(cam), (st.dets || []).map((d) => d.class));
+    if (!p || p.conf < 0.55 || p.sim < 0.55) { st.vis.streak = 0; return; }
+    const lab = p.label;
+    st.vis.streak = st.vis.last === lab.id ? st.vis.streak + 1 : 1; st.vis.last = lab.id;
+    $("chip-cam").classList.remove("hidden"); $("cam-name").textContent = lab.name;
+    if (st.vis.streak < 2 || Date.now() < st.vis.cool) return;
+    const node = R.nearestInRoom(lab.room, lab.x, lab.y); if (!node) return;
+    const d = R.distOfNode(st.route, node);
+    if (d != null) {
+      if (Math.abs(d - st.dist) > 2.2 && !st.stairsWaiting) {
+        L.log("vfix", { label: lab.id, node, from: +st.dist.toFixed(2), to: +d.toFixed(2) });
+        L.fix(d, st.steps);
+        st.dist = d; st.vis.cool = Date.now() + 6000;
+        toast(`Camera: you're at ${lab.name}`); updateNav();
+      }
+    } else if (st.vis.streak >= 3 && (!st.zone || st.zone.id !== lab.room) && !st.route.path.some((n) => (H.nodes[n].member || []).includes(lab.room))) {
+      // somewhere off the route: re-plan from there
+      const route = R.buildRoute(node, st.dest.node);
+      if (!route) return;
+      L.log("vfix", { label: lab.id, node, reroute: true });
+      Object.assign(st, { route, dist: 0, vDist: 0, stepsInLeg: 0, legIdx: -1, zone: null });
+      L._stepsAtLastFix = st.steps; L._distAtLastFix = 0;
+      st.vis.cool = Date.now() + 10000;
+      toast(`You're in ${roomById[lab.room] ? roomById[lab.room].name : lab.name}. New route.`); speak("New route.");
+      updateNav(true);
+    }
+  }
+  // object labels in live view (bed, sofa, TV…)
+  $("m-detect").onclick = async () => {
+    $("menu").classList.add("hidden");
+    st.detecting = !st.detecting;
+    $("m-detect").querySelector("span").textContent = st.detecting ? "Hide detected objects" : "Show detected objects";
+    if (!st.detecting) { clearDetCanvas($("det-canvas")); st.dets = []; return; }
+    toast("Loading object detector…");
+    try { await VIS.loadDetector(); } catch { toast("Couldn't load the detector"); st.detecting = false; return; }
+    const loop = async () => {
+      if (!st.detecting || !st.navigating) return;
+      if (st.mode === "live" && S._stream) { st.dets = await VIS.detect($("cam")); drawDet($("det-canvas"), $("cam"), st.dets); }
+      setTimeout(loop, 900);
+    };
+    loop();
+  };
+
   // ---------------- boot ----------------
   I.hydrate();
-  const params = new URLSearchParams(location.search);
-  const at = params.get("at") && roomById[params.get("at")];
-  const last = load("goe.lastRoom");
-  if (at) { st.fromRoom = at; st.whereFloor = at.floor; }
-  else if (last && roomById[last]) { st.pendingFrom = roomById[last]; st.whereFloor = roomById[last].floor; }
-  renderWhere();
-  if (at) {
-    st.destFloor = at.floor; renderDest(); show("dest");
-    const to = params.get("to") && roomById[params.get("to")];
-    if (to) openPreview(to);
+  function bootRender() {
+    $("bldg-name").textContent = H.name;
+    const params = new URLSearchParams(location.search);
+    const at = params.get("at") && roomById[params.get("at")];
+    const last = load("goe.lastRoom");
+    st.whereFloor = st.destFloor = st.pvFloor = st.pkFloor = lowestFloor();
+    st.pendingFrom = null;
+    if (at) { st.fromRoom = at; st.whereFloor = at.floor; }
+    else if (last && roomById[last]) { st.pendingFrom = roomById[last]; st.whereFloor = roomById[last].floor; }
+    renderWhere();
+    if (at) {
+      st.destFloor = at.floor; renderDest(); show("dest");
+      const to = params.get("to") && roomById[params.get("to")];
+      if (to) openPreview(to);
+    }
   }
+  bootRender();
+  // the published map (from the admin app) replaces the built-in one
+  window.Venue.load().then((h) => {
+    if (h.source !== "default" && !st.navigating && document.querySelector("#screen-where.active")) bootRender();
+    if (h.source === "draft") toast("Previewing your unpublished admin changes");
+  });
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();

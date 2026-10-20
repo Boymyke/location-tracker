@@ -1,6 +1,7 @@
 /* SVG floor-plan renderer (light, app-style) */
 (function () {
-  const H = window.HOUSE, M = H.metersPerPx;
+  const H = window.HOUSE;
+  const M = () => H.metersPerPx;
   const NS = "http://www.w3.org/2000/svg";
 
   const KIND = {
@@ -12,6 +13,7 @@
     stairs:      { fill: "#FCEBDD", ink: "#C2621C" },
     work:        { fill: "#E5F1FB", ink: "#2B7BBF" },
     exit:        { fill: "#FFFFFF", ink: "#E5484D" },
+    object:      { fill: "#FFE9E6", ink: "#E5484D" },
   };
   const PRIMARY = "#2F5BFF";
 
@@ -39,7 +41,9 @@
    */
   function render(svg, floor, opts = {}) {
     svg.innerHTML = "";
-    let vb = [256, 346, 568, 728];
+    const [bx1, by1, bx2, by2] = H.bounds;
+    const pad = 14;
+    let vb = [bx1 - pad, by1 - pad, bx2 - bx1 + pad * 2, by2 - by1 + pad * 2];
     if (opts.follow && opts.you) {
       const w = opts.zoom || 280;
       const r = svg.clientHeight && svg.clientWidth ? svg.clientHeight / svg.clientWidth : 1;
@@ -49,8 +53,8 @@
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
     // house slab + shadow
-    el("rect", { x: 266, y: 360, width: 546, height: 708, rx: 10, fill: "#0F1729", opacity: 0.06 }, svg);
-    el("rect", { x: 268, y: 358, width: 542, height: 704, rx: 8, fill: "#FFFFFF" }, svg);
+    el("rect", { x: bx1 - 2, y: by1 + 2, width: bx2 - bx1 + 4, height: by2 - by1 + 4, rx: 10, fill: "#0F1729", opacity: 0.06 }, svg);
+    el("rect", { x: bx1, y: by1, width: bx2 - bx1, height: by2 - by1, rx: 8, fill: "#FFFFFF" }, svg);
 
     const rooms = H.rooms.filter((r) => r.floor === floor && r.rect);
     for (const r of rooms) {
@@ -93,11 +97,25 @@
     // door gaps
     for (const id in H.nodes) {
       const n = H.nodes[id];
-      if (n.floor !== floor || !n.door) continue;
+      if (n.floor !== floor || !n.isDoor) continue;
       el("circle", { cx: n.x, cy: n.y, r: 5, fill: "#FFFFFF", stroke: "#C9D1DF", "stroke-width": 1.5, "pointer-events": "none" }, svg);
     }
     // outer walls
-    el("rect", { x: 268, y: 358, width: 542, height: 704, rx: 8, fill: "none", stroke: "#2A3448", "stroke-width": 5, "pointer-events": "none" }, svg);
+    el("rect", { x: bx1, y: by1, width: bx2 - bx1, height: by2 - by1, rx: 8, fill: "none", stroke: "#2A3448", "stroke-width": 5, "pointer-events": "none" }, svg);
+
+    // objects (bed, fridge, sofa...)
+    if (opts.objects !== false) {
+      for (const o of H.objects || []) {
+        if (o.floor !== floor) continue;
+        const hi = opts.highlightObject === o.id;
+        el("circle", { cx: o.x, cy: o.y, r: hi ? 15 : 10, fill: hi ? "#E5484D" : "#FFFFFF", stroke: hi ? "#fff" : "#C9D1DF", "stroke-width": hi ? 3 : 1.5, "pointer-events": "none" }, svg);
+        icon(svg, o.icon || "map-pin", o.x, o.y, hi ? 16 : 12, hi ? "#fff" : "#5E6A82", 2.2);
+        if (hi && opts.fences) {
+          el("circle", { cx: o.x, cy: o.y, r: 1.0 / M(), fill: "#12B886", opacity: 0.12, "pointer-events": "none" }, svg);
+          el("circle", { cx: o.x, cy: o.y, r: 1.0 / M(), fill: "none", stroke: "#12B886", "stroke-width": 3, "stroke-dasharray": "8 6", class: "fence", "pointer-events": "none" }, svg);
+        }
+      }
+    }
 
     // exits
     H.rooms.filter((r) => r.floor === floor && !r.rect).forEach((r) => {
@@ -108,8 +126,8 @@
       icon(g, r.icon, n.x, n.y, 16, sel ? "#fff" : "#E5484D", 2.4);
       if (opts.onPick) g.addEventListener("click", (e) => { e.stopPropagation(); opts.onPick(r); });
       if (opts.fences && opts.highlight === r.id) {
-        el("circle", { cx: n.x, cy: n.y, r: 1.0 / M, fill: "#12B886", opacity: 0.12, "pointer-events": "none" }, svg);
-        el("circle", { cx: n.x, cy: n.y, r: 1.0 / M, fill: "none", stroke: "#12B886", "stroke-width": 3, "stroke-dasharray": "8 6", class: "fence", "pointer-events": "none" }, svg);
+        el("circle", { cx: n.x, cy: n.y, r: 1.0 / M(), fill: "#12B886", opacity: 0.12, "pointer-events": "none" }, svg);
+        el("circle", { cx: n.x, cy: n.y, r: 1.0 / M(), fill: "none", stroke: "#12B886", "stroke-width": 3, "stroke-dasharray": "8 6", class: "fence", "pointer-events": "none" }, svg);
       }
     });
 

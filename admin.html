@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F1729" />
+  <meta name="robots" content="noindex" />
+  <title>Goe Admin</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body class="admin">
+  <header class="abar">
+    <div class="abar-brand"><img src="assets/icon.svg" width="28" height="28" alt="" /><div><b>Goe Admin</b><span id="a-venue-name">My House</span></div></div>
+    <nav class="atabs" id="atabs">
+      <button data-tab="map" class="on"><i data-ic="map"></i><span>Map</span></button>
+      <button data-tab="things"><i data-ic="package"></i><span>Things</span></button>
+      <button data-tab="train"><i data-ic="brain"></i><span>Train</span></button>
+      <button data-tab="learn"><i data-ic="sparkles"></i><span>Learn</span></button>
+      <button data-tab="settings"><i data-ic="settings"></i><span>Settings</span></button>
+    </nav>
+    <div class="abar-actions">
+      <span class="save-state" id="save-state">Saved</span>
+      <a class="btn tonal sm" id="btn-preview" href="./?draft=1" target="_blank"><i data-ic="eye"></i><span>Preview</span></a>
+      <button class="btn primary sm" id="btn-publish"><i data-ic="upload"></i><span>Publish</span></button>
+    </div>
+  </header>
+  <div class="banner-warn hidden" id="storage-warn"><i data-ic="triangle-alert"></i><span id="storage-warn-text"></span></div>
+
+  <!-- ================= MAP EDITOR ================= -->
+  <main class="apane on" id="pane-map">
+    <div class="ed-wrap">
+      <div class="ed-toolbar" id="ed-tools">
+        <button data-tool="select" class="on" title="Select & move (V)"><i data-ic="mouse-pointer-2"></i><span>Select</span></button>
+        <button data-tool="room" title="Draw a room (R)"><i data-ic="square"></i><span>Room</span></button>
+        <button data-tool="door" title="Add a door on a wall (D)"><i data-ic="door-open"></i><span>Door</span></button>
+        <button data-tool="object" title="Place an object (O)"><i data-ic="bed-double"></i><span>Object</span></button>
+        <button data-tool="stairs" title="Link stairs between floors (S)"><i data-ic="stairs"></i><span>Stairs</span></button>
+        <button data-tool="waypoint" title="Extra walking point (W)"><i data-ic="circle-dot"></i><span>Point</span></button>
+        <span class="tb-sep"></span>
+        <button id="ed-undo" title="Undo (Ctrl+Z)"><i data-ic="undo"></i></button>
+        <button id="ed-redo" title="Redo"><i data-ic="redo"></i></button>
+        <button id="ed-fit" title="Fit to screen"><i data-ic="maximize"></i></button>
+        <button id="ed-graph" title="Show walkways"><i data-ic="route"></i><span>Walkways</span></button>
+        <button id="ed-plan" title="Show traced plan"><i data-ic="layers"></i><span>Plan</span></button>
+      </div>
+      <div class="ed-floors" id="ed-floors"></div>
+      <div class="ed-canvas" id="ed-canvas">
+        <svg id="ed" class="ed-svg"></svg>
+        <div class="ed-hint" id="ed-hint">Drag empty space to pan · scroll / pinch to zoom</div>
+        <div class="ed-zoom"><button id="ed-zin"><i data-ic="plus"></i></button><button id="ed-zout"><i data-ic="minus"></i></button></div>
+      </div>
+    </div>
+    <aside class="ed-side" id="ed-side">
+      <div id="props"></div>
+      <div class="card">
+        <h4><i data-ic="route"></i> Test a route</h4>
+        <div class="field"><label>From</label><select id="rt-from"></select></div>
+        <div class="field"><label>To</label><select id="rt-to"></select></div>
+        <div id="rt-out" class="rt-out"></div>
+      </div>
+      <div class="card" id="checks-card">
+        <h4><i data-ic="check-check"></i> Map check</h4>
+        <ul class="checks" id="checks"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ================= THINGS ================= -->
+  <main class="apane" id="pane-things">
+    <div class="pane-inner">
+      <div class="pane-head">
+        <div><h2>Things &amp; where to find them</h2><p class="sub">Objects are places on the map (bed, fridge, wardrobe…). Items are things kept in or on them (keys, remote, charger). People can search for either and get walked there.</p></div>
+      </div>
+      <div class="card add-item">
+        <h4><i data-ic="plus"></i> Add an item</h4>
+        <div class="grid3">
+          <div class="field"><label>Item</label><input id="it-name" placeholder="e.g. Car keys" /></div>
+          <div class="field"><label>Kept at</label><select id="it-obj"></select></div>
+          <div class="field"><label>Exactly where</label><input id="it-where" placeholder="e.g. top drawer, left side" /></div>
+        </div>
+        <button class="btn primary sm" id="it-add"><i data-ic="plus"></i><span>Add item</span></button>
+      </div>
+      <label class="search"><i data-ic="search"></i><input id="th-search" type="search" placeholder="Search objects and items" /></label>
+      <div id="things-list"></div>
+    </div>
+  </main>
+
+  <!-- ================= TRAIN (ML) ================= -->
+  <main class="apane" id="pane-train">
+    <div class="pane-inner train">
+      <div class="pane-head">
+        <div><h2>Train the camera</h2><p class="sub">Teach the app what each spot looks like. Stand in a spot, press record and slowly turn around. Record each spot at least twice, at different times of day. The app then recognises where people are from their camera, fixes their position while they walk, and re-routes if they go somewhere else.</p></div>
+      </div>
+      <div class="train-grid">
+        <div class="card cam-card">
+          <div class="cam-box" id="tr-cam-box">
+            <video id="tr-video" playsinline muted autoplay></video>
+            <canvas id="tr-det"></canvas>
+            <div class="cam-empty" id="tr-cam-empty"><i data-ic="camera" data-size="34"></i><p>Camera is off</p></div>
+            <div class="rec-ring hidden" id="tr-rec"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" /><circle id="tr-rec-arc" cx="18" cy="18" r="16" pathLength="100" /></svg><b id="tr-rec-n">0</b></div>
+            <div class="pred hidden" id="tr-pred"></div>
+          </div>
+          <div class="row-btns">
+            <button class="btn tonal" id="tr-cam-btn"><i data-ic="camera"></i><span>Start camera</span></button>
+            <button class="btn tonal" id="tr-test-btn" disabled><i data-ic="scan"></i><span>Live test</span></button>
+            <button class="btn tonal" id="tr-det-btn" disabled><i data-ic="scan-eye"></i><span>Detect objects</span></button>
+          </div>
+          <p class="status-line" id="tr-status">The AI model loads when you start the camera (about 5 MB).</p>
+        </div>
+        <div class="card">
+          <div class="spots-head">
+            <h4><i data-ic="target"></i> Spots</h4>
+            <div class="row-btns tight">
+              <button class="btn tonal sm" id="sp-auto"><i data-ic="wand-sparkles"></i><span>One per room</span></button>
+              <button class="btn tonal sm" id="sp-add"><i data-ic="plus"></i><span>Add spot</span></button>
+            </div>
+          </div>
+          <div id="spots"></div>
+          <div class="model-foot">
+            <div class="stats" id="tr-stats"></div>
+            <div class="row-btns">
+              <button class="btn tonal sm" id="tr-eval"><i data-ic="check-check"></i><span>Check accuracy</span></button>
+              <button class="btn primary sm" id="tr-save"><i data-ic="upload"></i><span>Save model</span></button>
+            </div>
+            <div id="tr-eval-out"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= LEARN ================= -->
+  <main class="apane" id="pane-learn">
+    <div class="pane-inner">
+      <div class="pane-head">
+        <div><h2>Learn from trips</h2><p class="sub">Every trip people take is recorded: steps, compass, rooms entered, corrections, and where they left the route. This uses those trips to correct real walking distances, avoid routes people keep abandoning (something is blocking them), and spot doors that are missing from the map.</p></div>
+        <button class="btn primary sm" id="ln-run"><i data-ic="sparkles"></i><span>Analyse trips</span></button>
+      </div>
+      <div class="stats wide" id="ln-stats"></div>
+      <div id="ln-out"><div class="empty-state"><i data-ic="sparkles" data-size="30"></i><p>Press “Analyse trips” to learn from everything recorded so far.</p></div></div>
+    </div>
+  </main>
+
+  <!-- ================= SETTINGS ================= -->
+  <main class="apane" id="pane-settings">
+    <div class="pane-inner">
+      <div class="pane-head"><div><h2>Settings</h2></div></div>
+      <div class="card">
+        <h4>Building</h4>
+        <div class="grid2">
+          <div class="field"><label>Name</label><input id="st-name" /></div>
+          <div class="field"><label>Default stairs steps</label><input id="st-stairs" type="number" min="3" max="60" /></div>
+          <div class="field"><label>Scale (metres per map unit)</label><input id="st-scale" type="number" step="0.0001" /></div>
+          <div class="field"><label>Default stride (m)</label><input id="st-stride" type="number" step="0.01" /></div>
+        </div>
+        <p class="sub small">Scale tip: measure a room's real width (or count your steps × 0.7 m), then use “Measure” to set it exactly.</p>
+        <button class="btn tonal sm" id="st-measure"><i data-ic="pencil"></i><span>Measure on the map</span></button>
+      </div>
+      <div class="card">
+        <h4>Floors</h4>
+        <div id="st-floors"></div>
+        <button class="btn tonal sm" id="st-add-floor"><i data-ic="plus"></i><span>Add floor</span></button>
+      </div>
+      <div class="card">
+        <h4>Floor plan image (for tracing)</h4>
+        <p class="sub small">Upload a photo or drawing of the current floor and draw rooms on top of it.</p>
+        <div class="row-btns">
+          <label class="btn tonal sm"><i data-ic="upload"></i><span>Upload for current floor</span><input type="file" id="st-plan" accept="image/*" hidden /></label>
+          <button class="btn tonal sm" id="st-plan-clear"><i data-ic="trash-2"></i><span>Remove</span></button>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Image X</label><input id="pl-x" type="number" /></div>
+          <div class="field"><label>Image Y</label><input id="pl-y" type="number" /></div>
+          <div class="field"><label>Image width</label><input id="pl-w" type="number" /></div>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Data</h4>
+        <div class="row-btns">
+          <button class="btn tonal sm" id="st-export"><i data-ic="download"></i><span>Export map JSON</span></button>
+          <label class="btn tonal sm"><i data-ic="upload"></i><span>Import map JSON</span><input type="file" id="st-import" accept="application/json" hidden /></label>
+          <button class="btn tonal sm" id="st-reload"><i data-ic="refresh-cw"></i><span>Reload published map</span></button>
+          <button class="btn tonal sm danger-t" id="st-reset"><i data-ic="trash-2"></i><span>Start from default map</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Admin PIN</h4>
+        <div class="row-btns">
+          <button class="btn tonal sm" id="st-pin"><i data-ic="lock"></i><span>Change PIN</span></button>
+          <button class="btn tonal sm" id="st-logout"><i data-ic="log-out"></i><span>Lock admin</span></button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- PIN gate -->
+  <div class="overlay hidden" id="pin-gate">
+    <div class="sheet-card pin-card">
+      <div class="bs-ic"><i data-ic="lock" data-size="26"></i></div>
+      <h3 id="pin-title">Admin PIN</h3>
+      <p class="sub" id="pin-text">Enter your admin PIN to edit the map.</p>
+      <input id="pin-old" type="password" inputmode="numeric" placeholder="Current PIN" class="pin-in hidden" autocomplete="current-password" />
+      <input id="pin-in" type="password" inputmode="numeric" placeholder="PIN" class="pin-in" autocomplete="current-password" />
+      <input id="pin-in2" type="password" inputmode="numeric" placeholder="Repeat PIN" class="pin-in hidden" autocomplete="new-password" />
+      <p class="pin-err" id="pin-err"></p>
+      <div class="row"><button class="btn tonal" id="pin-skip">Just look</button><button class="btn primary" id="pin-ok">Continue</button></div>
+    </div>
+  </div>
+
+  <!-- object type picker / generic modal -->
+  <div class="overlay hidden" id="modal"><div class="sheet-card" id="modal-card"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/icons.js"></script>
+  <script src="js/house.js"></script>
+  <script src="js/venue.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/vision.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

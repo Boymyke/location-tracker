@@ -1,5 +1,5 @@
 // Network-first service worker: works offline after the first visit.
-const CACHE = "goe-v3";
+const CACHE = "goe-v4";
 self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", (e) => {

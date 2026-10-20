@@ -8,7 +8,7 @@
  * phone's tilt. Room names are pinned in 3D at their doors.
  */
 (function () {
-  const H = window.HOUSE, R = window.Router, M = H.metersPerPx;
+  const H = window.HOUSE, R = window.Router;
   const CAM_H = 1.35;       // phone height above floor (m)
   const VFOV = 62;          // vertical field of view of a rear camera (deg)
   const RANGE = 14;         // how far ahead the line is drawn (m)
@@ -48,7 +48,7 @@
 
     // plan px -> user frame (x right, z forward) in metres
     function toLocal(px, py) {
-      const e = (px - me.x) * M, n = -(py - me.y) * M;
+      const M = H.metersPerPx, e = (px - me.x) * M, n = -(py - me.y) * M;
       return { x: e * cosP - n * sinP, z: e * sinP + n * cosP };
     }
     function project(x, y, z) {
