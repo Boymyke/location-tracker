@@ -3,190 +3,207 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <meta name="theme-color" content="#0E1420" />
-  <meta name="description" content="Goe — indoor navigation. Pick where you are, choose where to go, and follow camera directions." />
-  <title>Goe Indoor Navigation</title>
+  <meta name="theme-color" content="#F4F6FA" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="description" content="Goe — indoor navigation. Pick where you are, choose where to go, and follow the line." />
+  <title>Goe Indoor Maps</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/icon-512.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
-  <!-- ============ 1. WHERE ARE YOU ============ -->
-  <section id="screen-where" class="screen active">
-    <header class="topbar">
-      <div class="brand"><span class="logo">◎</span> Goe</div>
-      <button class="ghost small" id="btn-data" title="Trip data">Trip data</button>
-    </header>
-    <div class="content">
-      <p class="eyebrow">Step 1 of 2</p>
-      <h1>Where are you right now?</h1>
-      <p class="muted">Tap the room you're in on the map, or pick it from the list.</p>
 
-      <div class="seg" id="where-floor">
-        <button data-floor="G" class="on">Downstairs</button>
-        <button data-floor="U">Upstairs</button>
-      </div>
-
-      <div class="mapcard"><svg id="where-map" class="map" aria-label="Floor plan"></svg></div>
-      <div class="chips" id="where-list"></div>
+<!-- ================= 1. WHERE ARE YOU ================= -->
+<section id="screen-where" class="screen active">
+  <div class="hero">
+    <svg id="where-map" class="map" aria-label="Floor plan"></svg>
+    <div class="hero-top">
+      <div class="brand-chip"><img src="assets/icon.svg" alt="" width="26" height="26" /><div><b>Goe</b><span id="bldg-name">My House</span></div></div>
+      <button class="icon-btn" id="btn-data" aria-label="Learning data"><i data-ic="database"></i></button>
     </div>
-    <div class="dock">
-      <button class="primary" id="btn-where-next" disabled>Choose a room</button>
-    </div>
-  </section>
+    <div class="floor-switch" data-target="where"></div>
+  </div>
+  <div class="panel">
+    <div class="grab"></div>
+    <h1>Where are you?</h1>
+    <p class="sub">Tap your room on the map, or choose it below.</p>
+    <label class="search"><i data-ic="search"></i><input id="where-search" type="search" placeholder="Search rooms" autocomplete="off" /></label>
+    <div id="where-list" class="list"></div>
+  </div>
+  <div class="dock">
+    <button class="btn primary block" id="btn-where-next" disabled><i data-ic="map-pin"></i><span>Choose your room</span></button>
+  </div>
+</section>
 
-  <!-- ============ 2. WHERE TO ============ -->
-  <section id="screen-dest" class="screen">
-    <header class="topbar">
-      <button class="ghost icon" data-back="where">←</button>
-      <div class="here-pill" id="dest-from"></div>
-      <span></span>
-    </header>
-    <div class="content">
-      <p class="eyebrow">Step 2 of 2</p>
-      <h1>Where do you want to go?</h1>
-      <input id="dest-search" class="search" type="search" placeholder="Search a room or activity… e.g. water, sleep, TV" autocomplete="off" />
-      <div id="dest-list"></div>
+<!-- ================= 2. WHERE TO ================= -->
+<section id="screen-dest" class="screen">
+  <div class="hero">
+    <svg id="dest-map" class="map"></svg>
+    <div class="hero-top">
+      <button class="icon-btn" data-back="where" aria-label="Back"><i data-ic="arrow-left"></i></button>
     </div>
-  </section>
+    <div class="floor-switch" data-target="dest"></div>
+  </div>
+  <div class="panel">
+    <div class="grab"></div>
+    <button class="from-row" data-back="where">
+      <span class="dot-you"></span>
+      <span class="from-txt"><small>Your location</small><b id="dest-from">—</b></span>
+      <span class="link">Change</span>
+    </button>
+    <h1>Where to?</h1>
+    <label class="search"><i data-ic="search"></i><input id="dest-search" type="search" placeholder="Search a room or what you want to do" autocomplete="off" /></label>
+    <div class="cats" id="dest-cats"></div>
+    <div id="dest-list" class="list"></div>
+  </div>
+</section>
 
-  <!-- ============ 3. ROUTE PREVIEW ============ -->
-  <section id="screen-preview" class="screen">
-    <header class="topbar">
-      <button class="ghost icon" data-back="dest">←</button>
-      <div class="title-sm" id="pv-title"></div>
-      <span></span>
-    </header>
-    <div class="content">
-      <div class="pv-stats" id="pv-stats"></div>
-      <div class="seg" id="pv-floor"></div>
-      <div class="mapcard"><svg id="pv-map" class="map"></svg></div>
-      <ol class="legs" id="pv-legs"></ol>
-      <div class="dest-info" id="pv-info"></div>
+<!-- ================= 3. PREVIEW ================= -->
+<section id="screen-preview" class="screen">
+  <div class="hero tall">
+    <svg id="pv-map" class="map"></svg>
+    <div class="hero-top">
+      <button class="icon-btn" data-back="dest" aria-label="Back"><i data-ic="arrow-left"></i></button>
     </div>
-    <div class="dock">
-      <button class="primary" id="btn-start">📷 Start camera directions</button>
-      <button class="ghost wide" id="btn-start-nocam">Directions without camera</button>
+    <div class="floor-switch" data-target="pv"></div>
+  </div>
+  <div class="panel">
+    <div class="grab"></div>
+    <div class="pv-head">
+      <div class="tile big" id="pv-icon"></div>
+      <div><h2 id="pv-name">—</h2><p class="sub" id="pv-floors"></p></div>
     </div>
-  </section>
-
-  <!-- ============ 4. NAVIGATION ============ -->
-  <section id="screen-nav" class="screen nav">
-    <video id="cam" playsinline muted autoplay></video>
-    <div class="cam-fallback" id="cam-fallback"></div>
-    <div class="vignette"></div>
-
-    <div class="nav-top">
-      <div class="instr" id="instr">
-        <div class="instr-icon" id="instr-icon">⬆️</div>
-        <div class="instr-body">
-          <div class="instr-text" id="instr-text">…</div>
-          <div class="instr-sub" id="instr-sub"></div>
-        </div>
-        <div class="instr-dist"><b id="instr-steps">0</b><span>steps</span></div>
-      </div>
-      <div class="nav-badges">
-        <span class="badge" id="badge-floor">Downstairs</span>
-        <span class="badge" id="badge-sensor">Sensors…</span>
-        <button class="badge btn" id="btn-voice">🔊</button>
-        <button class="badge btn" id="btn-menu">⋯</button>
-      </div>
+    <div class="stats" id="pv-stats"></div>
+    <div class="pv-actions">
+      <button class="btn primary" id="btn-start"><i data-ic="navigation-2"></i><span>Start</span></button>
+      <button class="btn tonal" id="btn-start-map"><i data-ic="map"></i><span>Map only</span></button>
     </div>
+    <h3 class="sec">Directions</h3>
+    <ol class="steps" id="pv-legs"></ol>
+    <h3 class="sec">About this place</h3>
+    <div class="about" id="pv-info"></div>
+  </div>
+</section>
 
-    <!-- AR layer -->
-    <div class="ar">
-      <div class="ar-target" id="ar-target"><span id="ar-target-name">Kitchen</span><small id="ar-target-dist"></small></div>
-      <div class="ar-arrow-wrap"><div class="ar-arrow" id="ar-arrow">
-        <svg viewBox="0 0 100 140"><defs><linearGradient id="ag" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FF7A45" stop-opacity=".35"/><stop offset="1" stop-color="#FF7A45"/></linearGradient></defs>
-          <path d="M50 4 L94 58 L66 58 L66 136 L34 136 L34 58 L6 58 Z" fill="url(#ag)" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>
-      </div></div>
-      <div class="ar-side left" id="ar-left"></div>
-      <div class="ar-side right" id="ar-right"></div>
-    </div>
+<!-- ================= 4. NAVIGATION ================= -->
+<section id="screen-nav" class="screen nav">
+  <video id="cam" playsinline muted autoplay></video>
+  <div class="cam-fallback" id="cam-fallback"></div>
+  <canvas id="ar-canvas"></canvas>
+  <div id="ar-labels"></div>
+  <svg id="nav-map" class="map navmap"></svg>
 
-    <!-- calibration -->
-    <div class="sheet calib hidden" id="calib">
-      <h3>Point your phone the right way</h3>
-      <p id="calib-text">Stand still and point the top of your phone toward the next spot.</p>
-      <div class="row">
-        <button class="primary" id="btn-calib">I'm facing it</button>
-        <button class="ghost" id="btn-calib-skip">Skip</button>
+  <div class="nav-top">
+    <div class="banner">
+      <div class="banner-ic" id="ban-ic"></div>
+      <div class="banner-body">
+        <div class="banner-dist"><b id="ban-steps">0</b> steps</div>
+        <div class="banner-text" id="ban-text">…</div>
       </div>
     </div>
-
-    <!-- stairs confirm -->
-    <div class="sheet hidden" id="stairs-sheet">
-      <h3 id="stairs-title">On the stairs</h3>
-      <p id="stairs-text"></p>
-      <div class="row"><button class="primary" id="btn-stairs-done">Yes, I'm there</button></div>
-    </div>
-
-    <div class="nav-bottom">
-      <div class="progress"><i id="progress-bar"></i></div>
-      <div class="nav-bottom-row">
-        <div class="mini" id="mini-wrap"><svg id="mini-map" class="map"></svg></div>
-        <div class="nav-actions">
-          <button class="primary" id="btn-here">✓ I'm at the turn</button>
-          <button class="ghost" id="btn-lost">I'm lost</button>
-          <button class="ghost" id="btn-end">End</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="menu hidden" id="menu">
-      <button id="m-calib">🧭 Re-calibrate compass</button>
-      <button id="m-demo">▶️ Demo walk (auto-steps)</button>
-      <button id="m-step">👣 Add one step</button>
-      <button id="m-close">Close</button>
-    </div>
-  </section>
-
-  <!-- ============ ARRIVED ============ -->
-  <div class="overlay hidden" id="arrived">
-    <div class="arrived-card">
-      <div class="burst">✓</div>
-      <p class="eyebrow">You have arrived</p>
-      <h1 id="arr-name">Kitchen</h1>
-      <p class="muted" id="arr-about"></p>
-      <h4>What you can do here</h4>
-      <ul class="acts" id="arr-acts"></ul>
-      <div class="chips" id="arr-objs"></div>
-      <button class="primary" id="btn-again">Go somewhere else</button>
+    <div class="then hidden" id="then"><span>Then</span><i id="then-ic"></i><b id="then-text"></b></div>
+    <div class="nav-chips">
+      <span class="chip-dark" id="chip-zone"><span class="zdot"></span><span id="zone-name">—</span></span>
+      <span class="chip-dark" id="chip-floor"><i data-ic="layers" data-size="14"></i><span id="floor-name">Ground floor</span></span>
+      <span class="chip-dark" id="chip-sensor"></span>
     </div>
   </div>
 
-  <!-- ============ LOST / MAP PICKER ============ -->
-  <div class="overlay hidden" id="picker">
-    <div class="picker-card">
-      <h3>Where are you now?</h3>
-      <p class="muted">Tap the room you're in. I'll re-plan the route from there.</p>
-      <div class="seg" id="pk-floor"><button data-floor="G" class="on">Downstairs</button><button data-floor="U">Upstairs</button></div>
-      <svg id="pk-map" class="map"></svg>
-      <button class="ghost wide" id="btn-pk-cancel">Cancel</button>
+  <div class="turn-hint hidden" id="turn-hint"><i id="turn-hint-ic"></i><span id="turn-hint-text">Turn around</span></div>
+
+  <div class="mini" id="mini"><svg id="mini-map" class="map"></svg></div>
+  <button class="fab" id="btn-mode" aria-label="Switch view"><i data-ic="map"></i></button>
+
+  <div class="nav-card">
+    <div class="nav-card-row">
+      <button class="round danger" id="btn-end" aria-label="End navigation"><i data-ic="x"></i></button>
+      <div class="eta"><b id="eta-main">0 steps</b><span id="eta-sub">to —</span></div>
+      <button class="round" id="btn-menu" aria-label="More"><i data-ic="ellipsis-vertical"></i></button>
+    </div>
+    <div class="progress"><i id="progress-bar"></i></div>
+    <div class="nav-card-row two">
+      <button class="btn primary" id="btn-here"><i data-ic="check"></i><span id="here-text">I'm here</span></button>
+      <button class="btn tonal" id="btn-lost"><i data-ic="crosshair"></i><span>Lost?</span></button>
     </div>
   </div>
 
-  <!-- ============ TRIP DATA ============ -->
-  <div class="overlay hidden" id="data">
-    <div class="picker-card">
-      <h3>Learning data</h3>
-      <p class="muted">Every trip is recorded (steps, compass, corrections) to train the future ML model and to learn your stride.</p>
-      <div class="pv-stats" id="data-stats"></div>
-      <button class="primary" id="btn-export">Download trip data (JSON)</button>
-      <button class="ghost wide" id="btn-data-close">Close</button>
+  <!-- sheets inside nav -->
+  <div class="bsheet hidden" id="calib">
+    <div class="bs-ic"><i data-ic="compass" data-size="26"></i></div>
+    <h3>Line up your compass</h3>
+    <p id="calib-text">Hold your phone upright and point it toward the next spot.</p>
+    <div class="row"><button class="btn tonal" id="btn-calib-skip">Skip</button><button class="btn primary" id="btn-calib">I'm facing it</button></div>
+  </div>
+  <div class="bsheet hidden" id="stairs-sheet">
+    <div class="bs-ic"><i data-ic="stairs" data-size="26"></i></div>
+    <h3 id="stairs-title">Stairs</h3>
+    <p id="stairs-text"></p>
+    <div class="row"><button class="btn primary" id="btn-stairs-done">Yes, I'm there</button></div>
+  </div>
+  <div class="bsheet hidden" id="offroute">
+    <div class="bs-ic warn"><i data-ic="route" data-size="26"></i></div>
+    <h3>You're leaving the route</h3>
+    <p>You seem to be walking away from the path. Tell me where you are and I'll find a new route.</p>
+    <div class="row"><button class="btn tonal" id="btn-off-dismiss">I'm fine</button><button class="btn primary" id="btn-off-fix">Re-route</button></div>
+  </div>
+  <div class="bsheet menu hidden" id="menu">
+    <button id="m-voice"><i data-ic="volume-2"></i><span>Voice guidance: on</span></button>
+    <button id="m-calib"><i data-ic="compass"></i><span>Recalibrate compass</span></button>
+    <button id="m-demo"><i data-ic="play"></i><span>Demo walk</span></button>
+    <button id="m-step"><i data-ic="footprints"></i><span>Add one step</span></button>
+    <button id="m-close" class="muted"><i data-ic="x"></i><span>Close</span></button>
+  </div>
+</section>
+
+<!-- ================= OVERLAYS ================= -->
+<div class="overlay hidden" id="arrived">
+  <div class="sheet-card">
+    <div class="arr-badge"><i data-ic="check" data-size="38"></i></div>
+    <p class="over">You've arrived</p>
+    <h1 id="arr-name">—</h1>
+    <p class="sub" id="arr-about"></p>
+    <h3 class="sec">What you can do here</h3>
+    <ul class="acts" id="arr-acts"></ul>
+    <div class="tags" id="arr-objs"></div>
+    <div class="row">
+      <button class="btn tonal" id="btn-done">Done</button>
+      <button class="btn primary" id="btn-again"><i data-ic="search"></i><span>Go elsewhere</span></button>
     </div>
   </div>
+</div>
 
-  <div class="toast" id="toast"></div>
+<div class="overlay hidden" id="picker">
+  <div class="sheet-card">
+    <div class="sc-head"><h3>Where are you now?</h3><button class="icon-btn flat" id="btn-pk-cancel"><i data-ic="x"></i></button></div>
+    <p class="sub">Tap the room you're in and I'll re-plan from there.</p>
+    <div class="seg" id="pk-floor"></div>
+    <div class="pk-map"><svg id="pk-map" class="map"></svg></div>
+  </div>
+</div>
 
-  <script src="js/house.js"></script>
-  <script src="js/router.js"></script>
-  <script src="js/sensors.js"></script>
-  <script src="js/learn.js"></script>
-  <script src="js/map.js"></script>
-  <script src="js/app.js"></script>
+<div class="overlay hidden" id="data">
+  <div class="sheet-card">
+    <div class="sc-head"><h3>Learning data</h3><button class="icon-btn flat" id="btn-data-close"><i data-ic="x"></i></button></div>
+    <p class="sub">Each trip is recorded (steps, compass, corrections, rooms entered). The app uses it to learn your stride, and it's the training data for the machine-learning model.</p>
+    <div class="stats" id="data-stats"></div>
+    <button class="btn primary block" id="btn-export"><i data-ic="arrow-down"></i><span>Download trip data</span></button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/icons.js"></script>
+<script src="js/house.js"></script>
+<script src="js/router.js"></script>
+<script src="js/sensors.js"></script>
+<script src="js/learn.js"></script>
+<script src="js/map.js"></script>
+<script src="js/ar.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

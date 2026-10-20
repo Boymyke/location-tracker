@@ -108,7 +108,7 @@
       if (leg.type === "stairs") {
         const up = H.nodes[leg.from].floor === "G";
         leg.dir = up ? "up" : "down";
-        leg.icon = up ? "⬆️" : "⬇️";
+        leg.icon = "stairs";
         leg.text = `Take the stairs ${leg.dir}`;
         leg.sub = `About ${H.stairSteps} steps — you'll arrive ${up ? "upstairs" : "downstairs"}`;
         return;
@@ -123,11 +123,11 @@
       const tail = named ? `to ${target}` : `along ${target}`;
       if (i === 0 || prevBearing == null) {
         leg.text = named ? `Head towards ${target}` : `Walk ${tail}`;
-        leg.icon = "⬆️";
+        leg.icon = "arrow-up";
       } else {
         const w = turnWord(delta);
         leg.text = w === "Go straight" ? `Continue ${tail}` : `${w} ${tail}`;
-        leg.icon = Math.abs(delta) < 30 ? "⬆️" : Math.abs(delta) > 140 ? "↩️" : delta > 0 ? "➡️" : "⬅️";
+        leg.icon = Math.abs(delta) < 30 ? "arrow-up" : Math.abs(delta) > 140 ? "undo-2" : delta > 0 ? "corner-up-right" : "corner-up-left";
       }
       leg.sub = toN.door ? `Go through the ${toN.label.toLowerCase()}` : "";
       leg.landmarks = sideLandmarks(leg, new Set(path));
@@ -139,6 +139,7 @@
   // Rooms you pass on your left/right along a leg
   function sideLandmarks(leg, onPath) {
     const out = [], seen = new Set();
+    for (const id of onPath) if (H.nodes[id].door) seen.add(H.nodes[id].door); // rooms you walk through
     for (const s of leg.segs) {
       for (const nid of [s.from, s.to]) {
         for (const e of adj[nid]) {
@@ -152,7 +153,7 @@
           const along = ((vx * dx + vy * dy) / (dx * dx + dy * dy || 1));
           if (along < -0.05) continue; // behind you
           seen.add(n.door);
-          out.push({ room, side: cross > 0 ? "right" : "left", at: s.start + Math.max(0, Math.min(1, along)) * s.len });
+          out.push({ room, nodeId: e.to, side: cross > 0 ? "right" : "left", at: s.start + Math.max(0, Math.min(1, along)) * s.len });
         }
       }
     }

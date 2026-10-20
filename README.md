@@ -30,3 +30,9 @@ Static site with no build step. `functions/api/trips.js` is a Cloudflare Pages F
 Optional: to store trips on the server, add a KV namespace binding named `TRIPS` in the Pages project settings.
 
 Camera and compass require HTTPS, which Cloudflare provides.
+
+## v2: app UI and the floor line
+* Map-first screens with a bottom-sheet panel, a floating floor switcher (1F / 2F), category filters, and Lucide icons. Works as an installable app (PWA).
+* **Live view** draws the route as a **line painted on the floor** in the camera (`js/ar.js`). It's projected using the compass heading and phone tilt, with moving chevrons, a destination pin, and room labels pinned at their doors.
+* **Geofencing**: every room is a fence. The app shows which room you're in, announces **arrival as soon as you enter the destination's fence**, and warns you when you walk away from the route corridor.
+* **Map view** shows Google-Maps-style turn-by-turn on the floor plan, with the walked part greyed out.

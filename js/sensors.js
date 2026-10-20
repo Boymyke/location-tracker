@@ -1,7 +1,8 @@
 /* Camera, compass and step detection (pedestrian dead reckoning). */
 (function () {
   const S = {
-    heading: null,          // degrees, 0 = magnetic north (device top direction)
+    heading: null,       // degrees, 0 = magnetic north (device top direction)
+    beta: null,          // device pitch in degrees
     hasCompass: false,
     hasMotion: false,
     onStep: null,
@@ -97,6 +98,11 @@
     if ("ondeviceorientationabsolute" in window) window.addEventListener("deviceorientationabsolute", onOrientAbs, true);
     else window.addEventListener("deviceorientation", onOrient, true);
     window.addEventListener("devicemotion", onMotion, true);
+    // phone tilt (beta: 90 = upright, 0 = flat) for projecting the floor line
+    window.addEventListener("deviceorientation", (e) => {
+      if (e.beta == null) return;
+      S.beta = S.beta == null ? e.beta : S.beta * 0.8 + e.beta * 0.2;
+    }, true);
   };
 
   window.Sensors = S;
